@@ -10,11 +10,11 @@ import (
 
 type Session struct {
 	User string
-	Key  string
+	Key  []byte
 	TTL  int64
 }
 
-func NewSession(user, key string, ttl time.Duration) Session {
+func NewSession(user string, key []byte, ttl time.Duration) Session {
 	eol := time.Now().Add(ttl).Unix()
 	return Session{user, key, eol}
 }

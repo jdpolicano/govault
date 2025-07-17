@@ -33,20 +33,30 @@ func NewJSONStore(path string) *JSONStore {
 	}
 }
 
-func (js *JSONStore) AddUser(user User) error {
+func (js *JSONStore) AddUser(name, login, salt string) error {
 	js.Lock()
 	defer js.Unlock()
-	record, exists := js.data[user.Name]
+	record, exists := js.data[name]
 	if exists {
-		return NewAlreadyExistsError(user.Name)
+		return NewAlreadyExistsError(name)
 	}
-	record = NewJSONRecord(user)
+	record = NewJSONRecord(User{name, login, salt})
 	userP := js.getUserPath(record.User.Name)
 	if e := recordOnDisk(userP, record); e != nil {
 		return e
 	}
-	js.data[user.Name] = record
+	js.data[name] = record
 	return nil
+}
+
+func (js *JSONStore) HasUser(name string) bool {
+	js.RLock()
+	defer js.RUnlock()
+	_, exists := js.data[name]
+	if !exists {
+		return false
+	}
+	return true
 }
 
 func (js *JSONStore) GetUserInfo(name string) (User, bool) {

@@ -32,7 +32,8 @@ func NewUserFromBytes(name string, login, salt []byte) User {
 
 type Store interface {
 	GetUserInfo(string) (User, bool) // find info on a give user, if they exists
-	AddUser(User) error
+	AddUser(name, login, salt string) error
+	HasUser(name string) bool
 	Get(name, key string) (CipherText, bool)      // get a given key from the required key, nonce, and text.
 	Set(name, key string, value CipherText) error // set a given value with a key
 }

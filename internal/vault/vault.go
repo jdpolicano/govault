@@ -6,8 +6,50 @@ import (
 	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 )
+
+type Key struct {
+	Login []byte
+	AES   []byte
+	Salt  []byte
+}
+
+func NewKey(text string, saltSize int) (*Key, error) {
+	salt, err := GenerateRandBytes(saltSize)
+	if err != nil {
+		return nil, err
+	}
+
+	login, err := pbkdf2Key("login"+text, salt)
+	if err != nil {
+		return nil, err
+	}
+
+	aes, err := pbkdf2Key("aes"+text, salt)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Key{login, aes, salt}, nil
+}
+
+func (k *Key) Encrypt(plaintext string) ([]byte, []byte, error) {
+	return Encrypt(k.AES, plaintext)
+}
+
+func (k *Key) Decrypt(nonce []byte, cipherText string) ([]byte, error) {
+	return Decrypt(nonce, k.AES, []byte(cipherText))
+}
+
+func (k *Key) Base64LoginKey() string {
+	return base64.URLEncoding.EncodeToString(k.Login)
+}
+
+func (k *Key) Base64Salt() string {
+	return base64.URLEncoding.EncodeToString(k.Salt)
+}
 
 // Generate n random bytes
 func GenerateRandBytes(n int) ([]byte, error) {
@@ -21,11 +63,25 @@ func GenerateRandBytes(n int) ([]byte, error) {
 
 // takes a plaintext string and returns a base64 encoded key and a base64 encoded salt
 // errors if its unable to generate a random salt or the pbkdf2 func fails.
-func DeriveKeyFromText(text string, salt []byte) ([]byte, error) {
+func DeriveKey(text string, saltSize int) ([]byte, []byte, error) {
 	// 600_000 was the recommended amount of iterations with HMAC-SHA-256
 	// for password authentication. I think our usecase is more or less the same since
 	// this key will be used to
-	key, err := deriveKeyWithSalt(text, salt)
+	salt, err := GenerateRandBytes(saltSize)
+	if err != nil {
+		return nil, nil, err
+	}
+	key, err := pbkdf2Key(text, salt)
+	return key, salt, err
+}
+
+// takes a plaintext string and returns a base64 encoded key and a base64 encoded salt
+// errors if its unable to generate a random salt or the pbkdf2 func fails.
+func DeriveKeyWithSalt(text string, salt []byte) ([]byte, error) {
+	// 600_000 was the recommended amount of iterations with HMAC-SHA-256
+	// for password authentication. I think our usecase is more or less the same since
+	// this key will be used to
+	key, err := pbkdf2Key(text, salt)
 	return key, err
 }
 
@@ -71,7 +127,7 @@ func createGCM(key []byte) (cipher.AEAD, error) {
 	return aesgcm, err
 }
 
-func deriveKeyWithSalt(text string, salt []byte) ([]byte, error) {
+func pbkdf2Key(text string, salt []byte) ([]byte, error) {
 	// 600_000 was the recommended amount of iterations with HMAC-SHA-256
 	// for password authentication. I think our usecase is more or less the same since
 	// this key will be used to
