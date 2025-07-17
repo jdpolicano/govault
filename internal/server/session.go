@@ -1,20 +1,22 @@
 package server
 
 import (
-	"crypto/rand"
 	"encoding/base64"
-	"fmt"
 	"sync"
+	"time"
+
+	"github.com/jdpolicano/govault/internal/vault"
 )
 
 type Session struct {
-	User     string
-	Password string
-	TTL      int64
+	User string
+	Key  string
+	TTL  int64
 }
 
-func NewSession(pw string, ttl int64) Session {
-	return Session{pw, ttl}
+func NewSession(user, key string, ttl time.Duration) Session {
+	eol := time.Now().Add(ttl).Unix()
+	return Session{user, key, eol}
 }
 
 type SessionMap struct {
@@ -43,10 +45,9 @@ func (s *SessionMap) Set(key string, sess Session) {
 func GenerateSessionID() (string, error) {
 	// A common practice is to use a 32-byte (256-bit) random value for session IDs.
 	// This provides sufficient entropy for security.
-	b := make([]byte, 32)
-	_, err := rand.Read(b)
+	b, err := vault.GenerateRandBytes(32)
 	if err != nil {
-		return "", fmt.Errorf("failed to read random bytes: %w", err)
+		return "", err
 	}
 	// Encode the random bytes to a URL-safe base64 string.
 	// This makes the ID suitable for use in cookies or URLs.

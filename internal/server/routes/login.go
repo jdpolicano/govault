@@ -1,31 +1,49 @@
 package routes
 
-import (
-	"errors"
-	"net/http"
+// import (
+// 	"encoding/json"
+// 	"errors"
+// 	"net/http"
 
-	"github.com/jdpolicano/govault/internal/server"
-)
+// 	"github.com/jdpolicano/govault/internal/server"
+// )
 
-const missingUser = errors.New("\"username\" is required for logging in")
-const missingPassword = errors.New("\"password\" is required for logging in")
+// var invalidRequestBody = errors.New("invalid request body")
+// var missingUser = errors.New("\"username\" is required for logging in")
+// var missingPassword = errors.New("\"password\" is required for logging in")
 
-type LoginRespone struct {
-	token string `json:"sessionKey"`
-}
+// type LoginSuccess struct {
+// 	Token string `json:"sessionKey"`
+// }
 
-type LoginRequest struct {
-	username string `json:"user"`
-	password string `json:"password"`
-}
+// type LoginFailure struct {
+// 	Code   int   `json:"code"`
+// 	Reason error `json:"reason"`
+// }
 
-func GetLoginRoute(s *server.Server) func(w http.ResponseWriter, req *http.Request) {
-	return func(w http.ResponseWriter, req *http.Request) {
-		req,
-	}
-}
+// type LoginRequest struct {
+// 	Username string `json:"user"`
+// 	Password string `json:"password"`
+// }
 
+// func GetLoginRoute(s *server.Context) func(w http.ResponseWriter, req *http.Request) {
+// 	return func(w http.ResponseWriter, req *http.Request) {
+// 		encoder := json.NewEncoder(w)
+// 		body, e := validateBody(req)
+// 		if e != nil {
+// 			encoder.Encode(loginFail(invalidRequestBody, 400))
 
-func validateBody(body LoginRequest) error {
-	return nil
-}
+// 		}
+// 	}
+// }
+
+// func validateBody(req *http.Request) (LoginRequest, error) {
+// 	var loginReq LoginRequest
+// 	decoder := json.NewDecoder(req.Body)
+// 	e := decoder.Decode(&loginReq)
+// 	return loginReq, e
+// }
+
+// func loginFail(reason error, code int) LoginFailure {
+// 	return LoginFailure{code, reason}
+// }

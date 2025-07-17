@@ -8,36 +8,45 @@ import (
 	"sync"
 )
 
-type CipherText struct {
-	Nonce string `json:"nonce"` // base64 encoded nonce
-	Text  string `json:"text"`  // base64 encoded text
+type JSONRecord struct {
+	User    User                  `json:"user"`
+	Secrets map[string]CipherText `json:"secrets"`
 }
 
-type User struct {
-	Name  string `json:"name"`  // the name of the user
-	Login string `json:"login"` // the namespaced key for login comparison
-	Salt  string `json:"salt"`  // the salt for the login key and the aes key generation
-}
-
-type StoreRecord struct {
-	user    User
-	secrets map[string]CipherText
+func NewJSONRecord(user User) JSONRecord {
+	return JSONRecord{user, make(map[string]CipherText, 256)}
 }
 
 // in memory and file backed json store.
 type JSONStore struct {
 	sync.RWMutex
-	vaultPath string                 // the path to the store's location
-	data      map[string]StoreRecord // the in memory store, backed by the disk map
-	disk      map[string]*os.File    // these are the actual file descriptors that we have opened so we can quickly update a write over the given file
+	vaultPath string                // the path to the store's location
+	data      map[string]JSONRecord // the in memory store, backed by the disk map
 }
 
+// todo: since we have the vault path, we should setup the store based on whatever was there before!
+// todo: we should have some kind eviction policy since we can't assume we'll hold all of these secrets in memory
 func NewJSONStore(path string) *JSONStore {
 	return &JSONStore{
 		vaultPath: path,
-		data:      make(map[string]StoreRecord, 1024),
-		disk:      make(map[string]*os.File, 1024),
+		data:      make(map[string]JSONRecord, 1024),
 	}
+}
+
+func (js *JSONStore) AddUser(user User) error {
+	js.Lock()
+	defer js.Unlock()
+	record, exists := js.data[user.Name]
+	if exists {
+		return NewAlreadyExistsError(user.Name)
+	}
+	record = NewJSONRecord(user)
+	userP := js.getUserPath(record.User.Name)
+	if e := recordOnDisk(userP, record); e != nil {
+		return e
+	}
+	js.data[user.Name] = record
+	return nil
 }
 
 func (js *JSONStore) GetUserInfo(name string) (User, bool) {
@@ -48,10 +57,10 @@ func (js *JSONStore) GetUserInfo(name string) (User, bool) {
 	if !exists {
 		return none, false
 	}
-	return record.user, true
+	return record.User, true
 }
 
-func (js *JSONStore) Get(name, key string, value CipherText) (CipherText, bool) {
+func (js *JSONStore) Get(name, key string) (CipherText, bool) {
 	js.RLock()
 	defer js.RUnlock()
 	var none CipherText
@@ -59,7 +68,7 @@ func (js *JSONStore) Get(name, key string, value CipherText) (CipherText, bool) 
 	if !recExists {
 		return none, false
 	}
-	ciphertext, ciphExists := record.secrets[key]
+	ciphertext, ciphExists := record.Secrets[key]
 	if !ciphExists {
 		return none, false
 	}
@@ -69,29 +78,32 @@ func (js *JSONStore) Get(name, key string, value CipherText) (CipherText, bool) 
 func (js *JSONStore) Set(name, key string, value CipherText) error {
 	js.Lock()
 	defer js.Unlock()
+
 	record, userExists := js.data[name]
 	if !userExists {
 		return fmt.Errorf("err user %s does not exist", name)
 	}
-	currCipher, cipherExists := record.secrets[key]
-	if cipherExists && currCipher == value {
+
+	original, cipherExists := record.Secrets[key]
+	if cipherExists && original == value {
 		return nil
 	}
-	record.secrets[key] = value
-	userP := js.getUserPath(record.user.Name)
-	return recordOnDisk(userP, record)
+
+	record.Secrets[key] = value
+	userP := js.getUserPath(record.User.Name)
+	if e := recordOnDisk(userP, record); e != nil {
+		record.Secrets[key] = original
+		return e
+	}
+	return nil
 }
 
 func (js *JSONStore) getUserPath(user string) string {
 	return filepath.Join(js.vaultPath, user, "secrets.json")
 }
 
-func recordOnDisk(path string, record StoreRecord) error {
-	keys := make([]CipherText, 0, len(record.secrets))
-	for _, cipherText := range record.secrets {
-		keys = append(keys, cipherText)
-	}
-	bytes, err := json.Marshal(keys)
+func recordOnDisk(path string, record JSONRecord) error {
+	bytes, err := json.Marshal(record)
 	if err != nil {
 		return err
 	}
