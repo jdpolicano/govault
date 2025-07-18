@@ -51,5 +51,5 @@ func GenerateSessionID() (string, error) {
 	}
 	// Encode the random bytes to a URL-safe base64 string.
 	// This makes the ID suitable for use in cookies or URLs.
-	return base64.URLEncoding.EncodeToString(b), nil
+	return base64.RawStdEncoding.EncodeToString(b), nil
 }

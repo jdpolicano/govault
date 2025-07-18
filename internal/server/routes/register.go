@@ -33,7 +33,6 @@ func GetRegisterRoute(ctx *server.Context) func(w http.ResponseWriter, req *http
 		}
 
 		ctx.Log.Printf("successfully derived salt for user \"%s\"", username)
-
 		login, salt := key.Base64LoginKey(), key.Base64Salt()
 
 		if err = ctx.Store.AddUser(username, login, salt); err != nil {
@@ -56,21 +55,9 @@ func GetRegisterRoute(ctx *server.Context) func(w http.ResponseWriter, req *http
 	}
 }
 
-// createUserSession encapsulates session setup logic.
-func createUserSession(ctx *server.Context, username string, key *vault.Key) (string, error) {
-	sessId, err := server.GenerateSessionID()
-	if err != nil {
-		return "", err
-	}
-	ctx.Log.Printf("starting session id=\"%s\"", sessId)
-	sess := server.NewSession(username, key.AES, ctx.Config.DefaultTTL)
-	ctx.Sessions.Set(sessId, sess)
-	return sessId, nil
-}
-
 // sendToken sends a successful response with the session token.
 func sendToken(w http.ResponseWriter, token string) {
-	res := AuthSuccess{Token: token}
+	res := TokenSuccess{Token: token}
 	server.JSONResponse(w, server.NewServerSuccess(res))
 }
 

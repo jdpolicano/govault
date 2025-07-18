@@ -41,6 +41,14 @@ func NewInvalidBodyError() Response {
 	return NewClientError(e.InvalidRequestBody)
 }
 
+func NewNoSuchUserError(u string) Response {
+	return NewClientError(e.NewNoSuchUserError(u))
+}
+
+func NewCredentialError() Response {
+	return NewClientError(e.IncorrectCredentials)
+}
+
 func NewServerError(reason error) Response {
 	return NewResponse(500, nil, reason)
 }

@@ -11,7 +11,8 @@ import (
 func main() {
 	config := server.DefaultConfig()
 	context := server.NewContext(config)
-	http.HandleFunc("/createUser", routes.GetCreateRoute(context))
+	http.HandleFunc("/register", routes.GetRegisterRoute(context))
+	http.HandleFunc("/login", routes.GetLoginRoute(context))
 	fmt.Println("listening on port 8080")
 	if e := http.ListenAndServe("localhost:8080", nil); e != nil {
 		fmt.Println(e)

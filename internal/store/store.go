@@ -18,15 +18,15 @@ func NewUser(name, login, salt string) User {
 }
 
 func (u User) SaltBytes() ([]byte, error) {
-	l := base64.URLEncoding.DecodedLen(len(u.Salt))
+	l := base64.RawStdEncoding.DecodedLen(len(u.Salt))
 	dest := make([]byte, l)
-	_, err := base64.URLEncoding.Decode(dest, []byte(u.Salt))
+	_, err := base64.RawStdEncoding.Decode(dest, []byte(u.Salt))
 	return dest, err
 }
 
 func NewUserFromBytes(name string, login, salt []byte) User {
-	l := base64.URLEncoding.EncodeToString(login)
-	s := base64.URLEncoding.EncodeToString(salt)
+	l := base64.RawStdEncoding.EncodeToString(login)
+	s := base64.RawStdEncoding.EncodeToString(salt)
 	return User{name, l, s}
 }
 
