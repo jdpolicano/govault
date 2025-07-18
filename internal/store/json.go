@@ -21,7 +21,7 @@ func NewJSONRecord(user User) JSONRecord {
 type JSONStore struct {
 	sync.RWMutex
 	vaultPath string                // the path to the store's location
-	data      map[string]JSONRecord // the in memory store, backed by the disk map
+	data      map[string]JSONRecord // the in memory store, backed by a json file
 }
 
 // todo: since we have the vault path, we should setup the store based on whatever was there before!
@@ -33,7 +33,7 @@ func NewJSONStore(path string) *JSONStore {
 	}
 }
 
-func (js *JSONStore) AddUser(name, login, salt string) error {
+func (js *JSONStore) AddUser(name string, login, salt []byte) error {
 	js.Lock()
 	defer js.Unlock()
 	record, exists := js.data[name]
@@ -95,7 +95,7 @@ func (js *JSONStore) Set(name, key string, value CipherText) error {
 	}
 
 	original, cipherExists := record.Secrets[key]
-	if cipherExists && original == value {
+	if cipherExists && original.Equal(value) {
 		return nil
 	}
 

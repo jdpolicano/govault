@@ -19,6 +19,11 @@ func NewSession(user string, key []byte, ttl time.Duration) Session {
 	return Session{user, key, eol}
 }
 
+func (s Session) Expired() bool {
+	expiry := time.Unix(s.TTL, 0)
+	return time.Now().After(expiry)
+}
+
 type SessionMap struct {
 	sync.RWMutex
 	sessions map[string]Session // a map from a session key to
@@ -39,6 +44,12 @@ func (s *SessionMap) Set(key string, sess Session) {
 	s.Lock()
 	defer s.Unlock()
 	s.sessions[key] = sess
+}
+
+func (s *SessionMap) Delete(key string) {
+	s.Lock()
+	defer s.Unlock()
+	delete(s.sessions, key)
 }
 
 // GenerateSessionID generates a cryptographically secure, random session ID.

@@ -6,7 +6,6 @@ import (
 	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
 )
 
@@ -21,7 +20,10 @@ func NewKey(text string, saltSize int) (*Key, error) {
 	if err != nil {
 		return nil, err
 	}
+	return NewKeyWithSalt(text, salt)
+}
 
+func NewKeyWithSalt(text string, salt []byte) (*Key, error) {
 	login, err := pbkdf2Key("login:"+text, salt)
 	if err != nil {
 		return nil, err
@@ -35,40 +37,12 @@ func NewKey(text string, saltSize int) (*Key, error) {
 	return &Key{login, aes, salt}, nil
 }
 
-func KeyFromSaltString(text string, saltStr string) (*Key, error) {
-	bytes, err := base64.RawStdEncoding.DecodeString(saltStr)
-	fmt.Println("raw bytes", bytes)
-	if err != nil {
-		return nil, err
-	}
-	login, err := pbkdf2Key("login:"+text, bytes)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println("raw login bytes", bytes)
-	aes, err := pbkdf2Key("aes:"+text, bytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Key{login, aes, bytes}, nil
-}
-
 func (k *Key) Encrypt(plaintext string) ([]byte, []byte, error) {
 	return Encrypt(k.AES, plaintext)
 }
 
 func (k *Key) Decrypt(nonce []byte, cipherText string) ([]byte, error) {
 	return Decrypt(nonce, k.AES, []byte(cipherText))
-}
-
-func (k *Key) Base64LoginKey() string {
-	return base64.RawStdEncoding.EncodeToString(k.Login)
-}
-
-func (k *Key) Base64Salt() string {
-	return base64.RawStdEncoding.EncodeToString(k.Salt)
 }
 
 // Generate n random bytes
