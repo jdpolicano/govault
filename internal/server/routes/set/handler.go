@@ -17,20 +17,20 @@ type SetRequest struct {
 
 // HTTP handler function for logging in and getting a new token.
 // todo: we should be validating the request type is a post request.
-func Handler(ctx *server.Context) http.HandlerFunc {
+func Handler(refs *server.ServerRefs) http.HandlerFunc {
 	handle := func(w http.ResponseWriter, req *http.Request) {
 		sess := req.Context().Value(server.SessionKey{}).(server.Session)
 		body := req.Context().Value(server.BodyKey{}).(SetRequest)
 
 		cipher, nonce, err := vault.Encrypt(sess.Key, body.Value)
 		if err != nil {
-			ctx.Log.Printf("err encrypting key %s", err)
+			refs.Log.Printf("err encrypting key %s", err)
 			http.Error(w, e.UnexpectedServerError.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		if err := setKey(ctx.Store, sess.User, body.Key, cipher, nonce); err != nil {
-			ctx.Log.Printf("err setting key %s", err)
+		if err := setKey(refs.Store, sess.User, body.Key, cipher, nonce); err != nil {
+			refs.Log.Printf("err setting key %s", err)
 			http.Error(w, e.UnexpectedServerError.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -39,9 +39,9 @@ func Handler(ctx *server.Context) http.HandlerFunc {
 	}
 
 	return middleware.Chain(handle,
-		middleware.ValidateToken(ctx),
+		middleware.Logging(refs.Log),
+		middleware.ValidateToken(refs),
 		middleware.ParseJSONBody[SetRequest](),
-		middleware.Logging(ctx.Log),
 	)
 }
 

@@ -13,12 +13,12 @@ type GetRequest struct {
 	Key string `json:"key"`
 }
 
-func Handler(ctx *server.Context) http.HandlerFunc {
+func Handler(refs *server.ServerRefs) http.HandlerFunc {
 	handle := func(w http.ResponseWriter, req *http.Request) {
 		sess := req.Context().Value(server.SessionKey{}).(server.Session)
 		body := req.Context().Value(server.BodyKey{}).(GetRequest)
 
-		cipher, exists := ctx.Store.Get(sess.User, body.Key)
+		cipher, exists := refs.Store.Get(sess.User, body.Key)
 		if !exists {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
@@ -26,7 +26,7 @@ func Handler(ctx *server.Context) http.HandlerFunc {
 
 		plain, err := vault.Decrypt(cipher.Nonce, sess.Key, cipher.Text)
 		if err != nil {
-			ctx.Log.Printf("err decrypting key %s", err)
+			refs.Log.Printf("err decrypting key %s", err)
 			http.Error(w, e.UnexpectedServerError.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -35,8 +35,8 @@ func Handler(ctx *server.Context) http.HandlerFunc {
 	}
 
 	return middleware.Chain(handle,
-		middleware.ValidateToken(ctx),
+		middleware.Logging(refs.Log),
+		middleware.ValidateToken(refs),
 		middleware.ParseJSONBody[GetRequest](),
-		middleware.Logging(ctx.Log),
 	)
 }

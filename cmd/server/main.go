@@ -13,11 +13,11 @@ import (
 
 func main() {
 	config := server.DefaultConfig()
-	context := server.NewContext(config)
-	http.HandleFunc("/register", register.Handler(context))
-	http.HandleFunc("/login", login.Handler(context))
-	http.HandleFunc("/get", get.Handler(context))
-	http.HandleFunc("/set", set.Handler(context))
+	refs := server.NewServerRefs(config)
+	http.HandleFunc("/register", register.Handler(refs))
+	http.HandleFunc("/login", login.Handler(refs))
+	http.HandleFunc("/get", get.Handler(refs))
+	http.HandleFunc("/set", set.Handler(refs))
 	fmt.Println("listening on port 8080")
 	if e := http.ListenAndServe("localhost:8080", nil); e != nil {
 		fmt.Println(e)

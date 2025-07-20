@@ -52,6 +52,16 @@ func (s *SessionMap) Delete(key string) {
 	delete(s.sessions, key)
 }
 
+func (s *SessionMap) CreateUserSession(username string, key []byte, ttl time.Duration) (string, error) {
+	sessId, err := GenerateSessionID()
+	if err != nil {
+		return "", err
+	}
+	sess := NewSession(username, key, ttl)
+	s.Set(sessId, sess)
+	return sessId, nil
+}
+
 // GenerateSessionID generates a cryptographically secure, random session ID.
 func GenerateSessionID() (string, error) {
 	// A common practice is to use a 32-byte (256-bit) random value for session IDs.

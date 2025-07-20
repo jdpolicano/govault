@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/jdpolicano/govault/internal/server"
@@ -23,14 +24,31 @@ func Chain(h http.HandlerFunc, m ...Middleware) http.HandlerFunc {
 }
 
 // ValidateToken validates the Authorization header and stores the session on the request context.
-func ValidateToken(ctx *server.Context) Middleware {
+func ValidateToken(refs *server.ServerRefs) Middleware {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			sess, err := ctx.ValidateTokenHeader(r)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+			// check that the header exists
+			auth := r.Header.Get("Authorization")
+			if len(auth) == 0 {
+				http.Error(w, "missing authorization", http.StatusUnauthorized)
 				return
 			}
+
+			// check that the prefix is correct
+			toke, found := strings.CutPrefix(auth, "Bearer govault-")
+			if !found {
+				http.Error(w, "malformed header", http.StatusUnauthorized)
+				return
+			}
+
+			// check if the token has expired...
+			sess, found := refs.Sessions.Get(toke)
+			if sess.Expired() {
+				refs.Sessions.Delete(toke)
+				http.Error(w, "no such session", http.StatusUnauthorized)
+				return
+			}
+
 			r = r.WithContext(context.WithValue(r.Context(), server.SessionKey{}, sess))
 			next(w, r)
 		}

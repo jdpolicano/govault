@@ -5,23 +5,19 @@ import (
 	"net/http"
 
 	"github.com/jdpolicano/govault/internal/server"
+	"github.com/jdpolicano/govault/internal/server/middleware"
 	"github.com/jdpolicano/govault/internal/vault"
 )
 
 // HTTP handler function for logging in and getting a new token.
 // todo: we should be validating the request type is a post request.
-func Handler(ctx *server.Context) func(w http.ResponseWriter, req *http.Request) {
-	return func(w http.ResponseWriter, req *http.Request) {
-		// verify request body is well formed
-		r, err := server.ValidateAuthRequest(req)
-		if err != nil {
-			server.JSONResponse(w, server.NewInvalidBodyError())
-			return
-		}
-		username, password := r.Username, r.Password
+func Handler(refs *server.ServerRefs) http.HandlerFunc {
 
+	handle := func(w http.ResponseWriter, req *http.Request) {
+		body := req.Context().Value(server.BodyKey{}).(server.AuthCredentials)
+		username, password := body.Username, body.Password
 		// now that we have the user and password, lets check if we have a user by this name.
-		record, exists := ctx.Store.GetUserInfo(username)
+		record, exists := refs.Store.GetUserInfo(username)
 		if !exists {
 			server.JSONResponse(w, server.NewNoSuchUserError(username))
 			return
@@ -42,13 +38,19 @@ func Handler(ctx *server.Context) func(w http.ResponseWriter, req *http.Request)
 
 		// if they are the same, create a new session with the aes key in memory and return
 		// a token to the user for future requests.
-		token, err := ctx.CreateUserSession(username, key)
+		token, err := refs.Sessions.CreateUserSession(username, key.AES, refs.Config.DefaultTTL)
 		if err != nil {
-			ctx.Log.Printf("error creating session for user \"%s\" %s", username, err)
+			refs.Log.Printf("error creating session for user \"%s\" %s", username, err)
 			server.JSONResponse(w, server.NewServerError(err))
 			return
 		}
 		server.SendToken(w, token)
-		ctx.Log.Println("response sent")
+		refs.Log.Println("response sent")
 	}
+
+	return middleware.Chain(handle,
+		middleware.Logging(refs.Log),
+		middleware.ParseJSONBody[server.AuthCredentials](),
+	)
+
 }
