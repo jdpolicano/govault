@@ -124,6 +124,6 @@ func createGCM(key []byte) (cipher.AEAD, error) {
 func pbkdf2Key(text string, salt []byte) ([]byte, error) {
 	// 600_000 was the recommended amount of iterations with HMAC-SHA-256
 	// for password authentication. I think our usecase is more or less the same since
-	// this key will be used to
+	// this key will be used to verify users and encrypt their data
 	return pbkdf2.Key(sha256.New, text, salt, 600_000, 32)
 }
